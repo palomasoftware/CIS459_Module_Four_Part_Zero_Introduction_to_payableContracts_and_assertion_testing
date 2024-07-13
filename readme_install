@@ -1,0 +1,140 @@
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+NODE_MAJOR=20
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+sudo apt-get update
+sudo apt-get install nodejs -y
+npm install web3
+npm install --save-dev @nomiclabs/hardhat-ethers ethers @nomiclabs/hardhat-waffle ethereum-waffle chai
+   
+mkdir firstPayable
+cd firstPayable
+npx hardhat init
+cd contract
+
+
+ubuntu@ip-172-31-27-33:~/firstPayable$ cd contracts
+ubuntu@ip-172-31-27-33:~/firstPayable/contracts$ ls
+Lock.sol
+ubuntu@ip-172-31-27-33:~/firstPayable/contracts$ rm Lock.sol
+ubuntu@ip-172-31-27-33:~/firstPayable/contracts$ vi ExamplePayableContract.sol
+ubuntu@ip-172-31-27-33:~/firstPayable/contracts$
+
+
+pragma solidity ^0.8.0;
+
+contract ExamplePayableContract {
+    event FundsReceived(address indexed sender, uint amount);
+    event FundsWithdrawn(address indexed recipient, uint amount);
+
+    function receiveFunds() external payable {
+        emit FundsReceived(msg.sender, msg.value);
+    }
+
+    function withdrawFunds(address payable recipient, uint amount) external {
+        require(amount <= address(this).balance, "Insufficient balance");
+        recipient.transfer(amount);
+        emit FundsWithdrawn(recipient, amount);
+    }
+}
+
+
+npx hardhat node --hostname localhost    # make sure to run as localhost vs the dns
+
+
+npx hardhat console --network localhost
+
+
+ubuntu@ip-172-31-27-33:~/firstPayable$
+npx hardhat console --network localhost
+Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing "SPDX-License-Identifier: <SPDX-License>" to each source file. Use "SPDX-License-Identifier: UNLICENSED" for non-open-source code. Please see https://spdx.org for more information.
+--> contracts/ExamplePayableContract.sol
+
+
+Compiled 1 Solidity file successfully (evm target: paris).
+Welcome to Node.js v18.19.1.
+Type ".help" for more information.
+> const signers = await ethers.getSigners();
+> signers
+
+> const contract =  await ethers.getContractFactory("ExamplePayableContract")
+undefined
+> const cd = await contract.deploy()
+undefined
+> const [deployer] = await ethers.getSigners();
+>const amountToSend = ethers.parseEther("1.0"); // 1 ETHers
+> await ethers.provider.getBalance(cd.target)
+0n
+> cd.receiveFunds({value: ethers.parseEther("0.5")})
+Promise {
+  <pending>,
+  [Symbol(async_id_symbol)]: 4379,
+  [Symbol(trigger_async_id_symbol)]: 14
+}
+> await ethers.provider.getBalance(cd.target)
+500000000000000000n
+> cd.receiveFunds({value: ethers.parseEther("2.5")})
+Promise {
+  <pending>,
+  [Symbol(async_id_symbol)]: 4713,
+  [Symbol(trigger_async_id_symbol)]: 14
+}
+> await ethers.provider.getBalance(cd.target)
+3000000000000000000n
+500000000000000000n
+> cd.receiveFunds({value: ethers.parseEther("2.5")})
+Promise {
+  <pending>,
+  [Symbol(async_id_symbol)]: 4713,
+  [Symbol(trigger_async_id_symbol)]: 14
+}
+> await ethers.provider.getBalance(cd.target)
+3000000000000000000n
+> await cd.withdrawFunds(signers[1], ethers.parseEther("2.0"))
+ await ethers.provider.getBalance(signers[1])
+
+> await cd.withdrawFunds(signers[2], ethers.parseEther("2.0"))
+Uncaught:
+ProviderError: Error: VM Exception while processing transaction: reverted with reason string 'Insufficient balance'
+    at HttpProvider.request (/home/ubuntu/firstPayable/node_modules/hardhat/src/internal/core/providers/http.ts:96:21)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at HardhatEthersSigner.sendTransaction (/home/ubuntu/firstPayable/node_modules/@nomicfoundation/hardhat-ethers/src/signers.ts:125:18)
+    at send (/home/ubuntu/firstPayable/node_modules/ethers/src.ts/contract/contract.ts:313:20)
+    at Proxy.withdrawFunds (/home/ubuntu/firstPayable/node_modules/ethers/src.ts/contract/contract.ts:352:16)
+    at REPL15:1:33
+    at node:repl:641:29
+> await cd.withdrawFunds(signers[2], ethers.parseEther("2.0"))
+
+> await cd.receiveFunds({value: ethers.parseEther("20.5")})
+> await cd.withdrawFunds(signers[2], ethers.parseEther("2.0"))
+
+const b3 =  await ethers.provider.getBalance(signers[2])
+
+> assert.equal((b2 + ethers.parseEther("2.0")), (b3 ), 'the amount will have increased by 2 ether')
+undefined
+> assert.equal((b2 + ethers.parseEther("22.0")), (b3 ), 'the amount will have increased by 2 ether')
+Uncaught AssertionError [ERR_ASSERTION]: the amount will have increased by 2 ether
+    at REPL22:1:8
+    at Script.runInThisContext (node:vm:122:12)
+    at REPLServer.defaultEval (node:repl:594:29)
+    at bound (node:domain:433:15)
+    at REPLServer.runBound [as eval] (node:domain:444:12)
+    at REPLServer.onLine (node:repl:924:10)
+    at REPLServer.emit (node:events:529:35)
+    at REPLServer.emit (node:domain:489:12)
+    at REPLServer.[_onLine] [as _onLine] (node:internal/readline/interface:423:12)
+    at REPLServer.[_line] [as _line] (node:internal/readline/interface:894:18) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 10022000000000000000000n,
+  expected: 10002000000000000000000n,
+  operator: '=='
+}
+>
+
+
+
+ref:
+https://www.digitalocean.com/community/tutorials/how-to-install-node-js-on-ubuntu-20-04
